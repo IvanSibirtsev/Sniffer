@@ -9,39 +9,37 @@ from output_format.packet_report import PacketReport
 def sniffer(args):
     try:
         socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
-        packets_count = int(args.packets_count)
         if args.filename:
             pcap_mod(socket, args)
         else:
-            if packets_count == 1:
-                packets_count = float('inf')
-            logic_expression, specials, report, show_bytes = keys_parser(args)
-            report = PacketReport(report)
-            count = 0
-            while count < packets_count:
-                current_data = socket.recvfrom(655363)[0]
-                count = console_mod(current_data, count, report,
-                                    logic_expression, specials, show_bytes)
-            report.show_report()
+            console_mod(socket, args)
     except PermissionError:
         print('Try sudo')
 
 
-def console_mod(data, count, report, logic_expression, specials, show_bytes):
-    protocol = 'Start'
-    final_packet = PacketFilter(logic_expression, specials)
-    package_size = len(data)
-    packet = None
-    while protocol != 'End' and final_packet.flag:
-        packet, data, protocol = parser_determine(data, protocol)
-        final_packet.add(packet)
-        report.add(packet, package_size)
-    if not final_packet.flag:
-        count += 1
-    if (packet.packet_name in ['tcp', 'udp'] and
-            show_bytes and data.binary_data):
-        print(data.to_str())
-    return count
+def console_mod(socket, args):
+    logic_expression, specials, report, show_bytes = keys_parser(args)
+    report = PacketReport(report)
+    count = 0
+    packets_count = args.packets_count
+    if args.packets_count == 1:
+        packets_count = float('inf')
+    while count < packets_count:
+        data = socket.recvfrom(655363)[0]
+        protocol = 'Start'
+        final_packet = PacketFilter(logic_expression, specials)
+        package_size = len(data)
+        packet = None
+        while protocol != 'End' and final_packet.flag:
+            packet, data, protocol = parser_determine(data, protocol)
+            final_packet.add(packet)
+            report.add(packet, package_size)
+        if not final_packet.flag:
+            count += 1
+        if (packet.packet_name in ['tcp', 'udp'] and
+                show_bytes and data.binary_data):
+            print(data.to_str())
+    report.show_report()
 
 
 def pcap_mod(socket, args):
