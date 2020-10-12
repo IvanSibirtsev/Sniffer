@@ -1,7 +1,7 @@
 import socket as s
 from parsers.header_parsers import parser_determine
 from parsers.arg_parser import parse_args, keys_parser
-from output_format.pcap import MakePcap
+from output_format.pcap import PcapFile
 from output_format.packet_filter import PacketFilter
 from output_format.packet_report import PacketReport
 
@@ -11,10 +11,7 @@ def sniffer(args):
         socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
         packets_count = int(args.packets_count)
         if args.filename:
-            data = {}
-            for i in range(packets_count):
-                data[i] = socket.recvfrom(655363)[0]
-            pcap_mod(args.filename, data, packets_count)
+            pcap_mod(socket, args)
         else:
             if packets_count == 1:
                 packets_count = float('inf')
@@ -47,9 +44,11 @@ def console_mod(data, count, report, logic_expression, specials, show_bytes):
     return count
 
 
-def pcap_mod(filename, raw_data, packets_count):
-    pcap_maker = MakePcap(filename)
-    pcap_maker.write_packet(raw_data, packets_count)
+def pcap_mod(socket, args):
+    data = {}
+    for i in range(args.packets_count):
+        data[i] = socket.recvfrom(655363)[0]
+    PcapFile(args.filename).write_pcap(data, args.packets_count)
 
 
 def main():

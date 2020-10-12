@@ -36,7 +36,7 @@ class TestPcap(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         self.pcap_maker = sniffer.pcap_mod('test_pcap.pcap', dictionary, 1)
-        path = os.path.join('../pcap', 'test_pcap.pcap')
+        path = os.path.join('pcap', 'test_pcap.pcap')
         self.assertEqual(os.path.exists(path), True)
         sys.stdout = old_stdout
         os.remove(path)
