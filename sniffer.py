@@ -54,7 +54,7 @@ def console_mod(socket, args):
 
 def pcap_mod(socket, args):
     data = {i: socket.receive_from() for i in range(args.packet_count)}
-    PcapFile(args.filename).write_pcap(data, args.packets_count)
+    PcapFile(args.filename).write_pcap(data)
 
 
 def main():

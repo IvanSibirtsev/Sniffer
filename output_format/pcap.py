@@ -21,9 +21,9 @@ class PcapFile:
         for x in global_header:
             self.file.write(x)
 
-    def write_pcap(self, raw_packet, packets_count):
-        for i in range(packets_count):
-            self.write_packet(raw_packet[i])
+    def write_pcap(self, raw_packet):
+        for key in raw_packet.keys():
+            self.write_packet(raw_packet.get(key))
         self.file.close()
 
     def write_packet(self, packet):

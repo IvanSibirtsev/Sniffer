@@ -3,7 +3,11 @@ import sys
 import re
 import socket
 
+
 LOGIC = {'and', 'or', 'not', '(', ')'}
+
+
+
 
 
 def parse_args():
@@ -25,104 +29,118 @@ def parse_args():
                         help='print report. variants [ip, count, bytes]')
     parser.add_argument('-b', '--binary', dest='binary_mod',
                         action='store_true')
-    for check in [check_count, check_interfaces, check_special, check_report]:
-        check(parser.parse_args())
-    return parser.parse_args()
+    args = Args(parser.parse_args())
+    return args
 
 
-def check_count(args):
-    try:
-        count = int(args.packets_count)
-    except ValueError:
-        print('--count must be a number.')
-        sys.exit()
-    if count < 0:
-        print('--count must be a positive number.')
-        sys.exit()
+class Args:
+    def __init__(self, args):
+        self.filename = args.filename
+        self.packets_count = ArgCount(args).count
+        self.headers = ArgHeaders(args).headers
+        self.special = ArgSpecial(args).special
+        self.report = ArgReport(args).report
 
 
-def check_interfaces(args):
-    interfaces = parse_interfaces(args.headers)
-    interfaces = interfaces.split(' ')
-    language = {'any', 'eth', 'ipv4', 'ipv6', 'tcp', 'udp'}
-    language |= LOGIC
-    for interface in interfaces:
-        if interface in language:
-            pass
-        else:
-            print(f'Unknown packet header "{interface}". ' +
-                  'Try "sudo python3 sniffer.py -h"')
+class ArgCount:
+    def __init__(self, args):
+        self.count = args.packets_count
+        self.check()
+        if not args.filename and self.count == 1:
+            self.count = float('inf')
+
+    def check(self):
+        try:
+            count = int(self.count)
+        except ValueError:
+            print('--count must be a number.')
+            sys.exit()
+        if count < 0:
+            print('--count must be a positive number.')
             sys.exit()
 
 
-def check_special(args):
-    specials = parse_interfaces(args.special)
-    specials = specials.split(' ')
-    language = {'any', 'host', 'src', 'dst', 'port'}
-    language |= LOGIC
-    ip_regex = re.compile('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
-    for spec in specials:
-        result = re.match(ip_regex, spec)
-        if not (result or spec.isdigit() or spec in language):
-            print(f'Unknown "{spec}". Try "sudo python3 sniffer.py -h"')
+class ArgHeaders:
+    def __init__(self, args):
+        self.args = args
+        self.check()
+        self.headers = self.parse_interfaces(args.headers)
+
+    def check(self):
+        interfaces = self.parse_interfaces(self.args.headers)
+        interfaces = interfaces.split(' ')
+        language = {'any', 'eth', 'ipv4', 'ipv6', 'tcp', 'udp'}
+        language |= LOGIC
+        for interface in interfaces:
+            if interface in language:
+                pass
+            else:
+                print(f'Unknown packet header "{interface}". ' +
+                      'Try "sudo python3 sniffer.py -h"')
+                sys.exit()
+
+    @staticmethod
+    def parse_interfaces(args):
+        interfaces = ' '.join(args)
+        interfaces = interfaces.replace('any ', '')
+        if len(interfaces) <= 1:
+            interfaces = 'any'
+        if interfaces.count('(') != interfaces.count(')'):
+            print('close bracket.')
             sys.exit()
+        for replace in [('  ', ' '), ('(', '( '), (')', ' )'), ('  ', ' ')]:
+            interfaces = interfaces.replace(replace[0], replace[1])
+        return interfaces
 
 
-def check_report(args):
-    for element in args.report:
-        if element not in ['any', 'ip', 'count', 'bytes']:
-            print(f'Unknown "{element}". Try "sudo python3 sniffer.py -h"')
-            sys.exit()
+class ArgSpecial:
+    def __init__(self, args):
+        self.special = ArgHeaders.parse_interfaces(args.special)
+        self.check()
+        self.parse_special()
+
+    def check(self):
+        special = self.special.split(' ')
+        language = {'any', 'host', 'src', 'dst', 'port'}
+        language |= LOGIC
+        ip_regex = re.compile('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
+        for spec in special:
+            result = re.match(ip_regex, spec)
+            if not (result or spec.isdigit() or spec in language):
+                print(f'Unknown "{spec}". Try "sudo python3 sniffer.py -h"')
+                sys.exit()
+
+    def parse_special(self):
+        if self.special.find('host') != -1:
+            host = socket.gethostbyaddr(socket.gethostname())[2][0]
+            self.special = self.special.replace('host', 'host ' + host)
+        for name in ['host', 'src', 'dst', 'port']:
+            if self.special.find(name) != -1:
+                self.special = self.special.replace(name + ' ', name + '=')
+        self.parse_host()
+        self.special = ArgHeaders.parse_interfaces(self.special)
+
+    def parse_host(self):
+        self.special = self.special.split(' ')
+        for i in range(len(self.special)):
+            if self.special[i].find('host') != -1:
+                host = self.special[i]
+                index = host.index('=')
+                ip = host[index + 1:]
+                self.special[i] = f'( src={ip} or dst={ip} )'
 
 
-def keys_parser(args):
-    logic_expression = parse_interfaces(args.headers)
-    specials = parse_special(args.special)
-    report = parse_report(args.report)
-    show_bytes = args.binary_mod
-    return logic_expression, specials, report, show_bytes
+class ArgReport:
+    def __init__(self, args):
+        self.report = args.report
+        self.check()
 
+    def check(self):
+        for element in self.report:
+            if element not in ['any', 'ip', 'count', 'bytes']:
+                print(f'Unknown "{element}". Try "sudo python3 sniffer.py -h"')
+                sys.exit()
 
-def parse_interfaces(args):
-    interfaces = ' '.join(args)
-    interfaces = interfaces.replace('any ', '')
-    if len(interfaces) <= 1:
-        interfaces = 'any'
-    if interfaces.count('(') != interfaces.count(')'):
-        print('close bracket.')
-        sys.exit()
-    for replace in [('  ', ' '), ('(', '( '), (')', ' )'), ('  ', ' ')]:
-        interfaces = interfaces.replace(replace[0], replace[1])
-    return interfaces
-
-
-def parse_host(special):
-    special = special.split(' ')
-    for i in range(len(special)):
-        if special[i].find('host') != -1:
-            host = special[i]
-            index = host.index('=')
-            ip = host[index + 1:]
-            special[i] = f'( src={ip} or dst={ip} )'
-    return special
-
-
-def parse_special(special):
-    special = parse_interfaces(special)
-    if special.find('host') != -1:
-        host = socket.gethostbyaddr(socket.gethostname())[2][0]
-        special = special.replace('host', 'host ' + host)
-    for name in ['host', 'src', 'dst', 'port']:
-        if special.find(name) != -1:
-            special = special.replace(name + ' ', name + '=')
-    special = parse_host(special)
-    special = parse_interfaces(special)
-    return special
-
-
-def parse_report(report):
-    if len(report) == 1:
-        return report
-    if 'any' in report:
-        report = report[1:]
-        return report
+    def parse_report(self):
+        if 'any' in self.report:
+            self.report = self.report[1:]
