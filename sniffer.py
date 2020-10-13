@@ -6,9 +6,19 @@ from output_format.packet_filter import PacketFilter
 from output_format.packet_report import PacketReport
 
 
-def sniffer(args):
+class Socket:
+    ALL_DATA = 65565
+
+    def __init__(self):
+        self.socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
+
+    def receive_from(self):
+        return self.socket.recvfrom(self.ALL_DATA)[0]
+
+
+def sniffer(args): 
     try:
-        socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
+        socket = Socket()
         if args.filename:
             pcap_mod(socket, args)
         else:
@@ -25,7 +35,7 @@ def console_mod(socket, args):
     if args.packets_count == 1:
         packets_count = float('inf')
     while count < packets_count:
-        data = socket.recvfrom(655363)[0]
+        data = socket.receive_from()
         protocol = 'Start'
         final_packet = PacketFilter(logic_expression, specials)
         package_size = len(data)
@@ -43,9 +53,7 @@ def console_mod(socket, args):
 
 
 def pcap_mod(socket, args):
-    data = {}
-    for i in range(args.packets_count):
-        data[i] = socket.recvfrom(655363)[0]
+    data = {i: socket.receive_from() for i in range(args.packet_count)}
     PcapFile(args.filename).write_pcap(data, args.packets_count)
 
 

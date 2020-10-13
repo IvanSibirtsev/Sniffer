@@ -44,3 +44,13 @@ class TestTCP:
 
     def to_str(self):
         return self.packet_name
+
+
+class TestSocket:
+    ADDRESS = ""
+
+    def __init__(self):
+        self.data = b""
+
+    def recvfrom(self, integer):
+        return [self.data, self.ADDRESS]

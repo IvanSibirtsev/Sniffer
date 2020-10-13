@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('-f', '--file', dest='filename',
                         help="output pcap filename")
     parser.add_argument('-c', '--count', dest='packets_count', default=1,
-                        help='count of packets you want to catch')
+                        type=int, help='count of packets you want to catch')
     parser.add_argument('-p', '--packets_header', dest='headers',
                         default=['any'], action='extend', nargs='+',
                         help='interface you want to sniff. variants ' +
@@ -25,10 +25,8 @@ def parse_args():
                         help='print report. variants [ip, count, bytes]')
     parser.add_argument('-b', '--binary', dest='binary_mod',
                         action='store_true')
-    check_count(parser.parse_args())
-    check_interfaces(parser.parse_args())
-    check_special(parser.parse_args())
-    check_report(parser.parse_args())
+    for check in [check_count, check_interfaces, check_special, check_report]:
+        check(parser.parse_args())
     return parser.parse_args()
 
 
