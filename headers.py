@@ -9,6 +9,7 @@ TAB_3 = '|\t\t\t- '
 
 class Ethernet:
     def __init__(self, src, destination, ether_type):
+        self.level = 'data_link'
         self.packet_name = 'eth'
         self.s_mac = self.get_mac(src)
         self.d_mac = self.get_mac(destination)
@@ -33,6 +34,7 @@ class IPv4:
     def __init__(self, version, iph_len, tos, total_len, datagram_id, flags,
                  fr_offset, ttl, protocol, checksum, source, destination):
         # region init
+        self.level = 'network'
         self.packet_name = 'ipv4'
         self.version = version
         self.iph_len = iph_len
@@ -72,6 +74,7 @@ class IPv4:
 class IPv6:
     def __init__(self, version,  payload_label, protocol, ttl,
                  source, destination):
+        self.level = 'network'
         self.packet_name = 'ipv6'
         self.version = version
         self.payload_label = payload_label
@@ -101,6 +104,7 @@ class IPv6:
 class TCP:
     def __init__(self, s_port, d_port, sequence, acknowledgment, window_size,
                  checksum, urgent_point, flags):
+        self.level = 'transport'
         self.packet_name = 'tcp'
         self.s_port = str(s_port)
         self.d_port = str(d_port)
@@ -130,6 +134,7 @@ class TCP:
 
 class UDP:
     def __init__(self, s_port, d_port, length, checksum):
+        self.level = 'transport'
         self.packet_name = 'udp'
         self.s_port = str(s_port)
         self.d_port = str(d_port)
@@ -158,6 +163,7 @@ class BinaryData:
 
 class UnknownPacket:
     def __init__(self, protocol, binary_data):
+        self.level = 'unknown'
         self.packet_name = 'unknown'
         self.protocol = protocol
         self.binary_data = binary_data

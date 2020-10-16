@@ -4,19 +4,18 @@ from prettytable import PrettyTable
 class PacketReport:
     def __init__(self, report_type):
         self._sum = 0
-        self.report_type = ['ip', 'count', 'bytes'] if report_type == ['any'] \
-            else report_type
+        self.report_type = report_type
         self._packet = None
         self._dictionary = {}
         self._ip_list = []
 
-    def add(self, packet, size):
-        packet_name = packet.packet_name
-        if packet_name in ['eth', 'tcp', 'udp']:
-            return
-        if packet_name in ['ipv4', 'ipv6']:
-            self._update_dictionary(packet.d_ip, size)
-        self._update_sum(size)
+        self.table = None
+
+    def add(self, full_packet):
+        packet = full_packet.full_packet
+        self._update_dictionary(packet['network'].d_ip,
+                                full_packet.packet_size)
+        self._update_sum(full_packet.packet_size)
 
     def _update_dictionary(self, ip, size):
         if self._dictionary.get(ip):
@@ -37,11 +36,11 @@ class PacketReport:
         return string
 
     def _make_table(self):
-        table = PrettyTable(self.report_type)
+        self.table = PrettyTable(self.report_type)
+        print(self.report_type)
         for ip in self._ip_list:
             req_count, size = self._dictionary[ip]
             dictionary = {'ip': ip, 'count': req_count, 'bytes': size}
             row = [dictionary[report_type] for report_type in self.report_type]
-            table.add_row(row)
-        print(table)
-        print(self._show_size())
+            self.table.add_row(row)
+        str(self.table) + '\n' + self._show_size()

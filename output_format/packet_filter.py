@@ -1,81 +1,76 @@
 class PacketFilter:
     def __init__(self, logic_expression, specials):
         self.logic_expression = logic_expression
+        self.specials = specials
         if self.logic_expression == 'any':
             self.logic_expression = 'eth and (ipv4 or ipv6) and (tcp or udp)'
 
-        self.specials = specials
-        self.flag = True
+        self.packet = None
+        self.eth = None
+        self.network = None
+        self.transport = None
 
-        self.eth_packet = None
-        self.network_packet = None
-        self.transport_packet = None
-        self.final_packet = None
+        self.matching_packets = None
+
+    def _update(self):
+        self.eth = self.packet['data_link']
+        self.network = self.packet['network']
+        self.transport = self.packet['transport']
+
+    def _levels_to_check(self):
+        first = [[self.eth]]
+        second = [[self.network], [self.eth, self.network]]
+        third = [[self.transport], [self.eth, self.transport],
+                 [self.network, self.transport],
+                 [self.eth, self.network, self.transport]]
+        return first, second, third
 
     def add(self, packet):
-        if packet.packet_name in ['eth']:
-            self.eth_packet = packet
-            for level in [[self.eth_packet]]:
-                if self.flag:
-                    self.first_check(level)
+        self.packet = packet.full_packet
+        self._update()
 
-        if packet.packet_name in ['ipv4', 'ipv6']:
-            self.network_packet = packet
-            for level in [[self.network_packet],
-                          [self.eth_packet, self.network_packet]]:
-                if self.flag:
-                    self.first_check(level)
+    def check(self):
+        levels = self._levels_to_check()
+        for n in [0, 1, 2]:
+            for level in levels[n]:
+                first = self._first_check(level)
+                second = self._second_check(level)
+                if first and second:
+                    self.matching_packets = level
+                    return True
+        return False
 
-        if packet.packet_name in ['tcp', 'udp']:
-            self.transport_packet = packet
-            for level in [[self.transport_packet],
-                          [self.eth_packet, self.transport_packet],
-                          [self.network_packet, self.transport_packet],
-                          [self.eth_packet, self.network_packet,
-                           self.transport_packet]]:
-                if self.flag:
-                    self.first_check(level)
-
-    def first_check(self, current_packets):
+    def _first_check(self, current_packets):
         logic_expr = self.logic_expression
-
         for name in current_packets:
-            if logic_expr.find(name.packet_name) != -1:
-                logic_expr = logic_expr.replace(name.packet_name, 'True')
+            logic_expr = self.replace(logic_expr, name.packet_name, 'True')
 
         for name in ['eth', 'ipv4', 'ipv6', 'udp', 'tcp']:
-            if logic_expr.find(name) != -1:
-                logic_expr = logic_expr.replace(name, 'False')
+            logic_expr = self.replace(logic_expr, name, 'False')
 
-        if eval(logic_expr) and self.second_check(current_packets):
-            self._show_packet(current_packets)
-            self.flag = False
+        return eval(logic_expr)
 
-    def second_check(self, current_packets):
-        if self.specials == 'any':
+    def _second_check(self, current_packets):
+        spec = self.specials
+        if spec == 'any':
             return True
-        specials = self.specials
         for name in current_packets:
-            if name.packet_name in ['ipv4', 'ipv6']:
-                if specials.find('src=' + name.s_ip) != -1:
-                    specials = specials.replace('src=' + name.s_ip, 'True')
-                if specials.find('dst=' + name.d_ip) != -1:
-                    specials = specials.replace('dst=' + name.d_ip, 'True')
-            if name.packet_name in ['tcp', 'udp']:
-                if specials.find('port=' + name.s_port) != -1:
-                    specials = specials.replace('port=' + name.s_port, 'True')
+            if name.level == 'network':
+                spec = self.replace(spec, 'src=' + name.s_ip, 'True')
+                spec = self.replace(spec, 'dst=' + name.d_ip, 'True')
+            if name.level == 'transport':
+                spec = self.replace(spec, 'port=' + name.s_port, 'True')
 
-        specials = specials.split(' ')
-        for i in range(len(specials)):
-            if specials[i] not in ['True', 'and', 'or', '(', ')']:
-                specials[i] = 'False'
-        specials = ' '.join(specials)
-        return eval(specials)
+        spec = spec.split(' ')
+        for i in range(len(spec)):
+            if spec[i] not in ['True', 'and', 'or', '(', ')']:
+                spec[i] = 'False'
+        spec = ' '.join(spec)
+
+        return eval(spec)
 
     @staticmethod
-    def _show_packet(current_packets):
-        margin = {'up': '+' + '-' * 92, 'down': '|' + '_' * 92}
-        print(margin['up'])
-        for packet in current_packets:
-            if packet:
-                print(packet.to_str())
+    def replace(source, sought, relocatable):
+        if source.find(sought) != -1:
+            return source.replace(sought, relocatable)
+        return source

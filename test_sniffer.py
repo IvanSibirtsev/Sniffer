@@ -5,8 +5,7 @@ import os
 import io
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             os.path.pardir))
+# sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 
 import sniffer
 import headers as h
@@ -14,25 +13,10 @@ from parsers import arg_parser as ap, header_parsers as hp
 from output_format import packet_report as pr, packet_filter as pf
 from tests import test_classes as test
 
-# region binary data
-# TCP
-raw_data_1 = b'RT\x00\x125\x02\x08\x00\'T\xec\xcd\x08\x00E\x00\x00(\xfe"@' \
-             b'\x00@\x06\xd5\xa2\n\x00\x02\x0f\\z\xfe\x81\xd9\x96\x01\xbbH;}' \
-             b'\xa9\x10\x960\xe9P\x10\xf9\x9cg%\x00\x00'
-# UDP
-raw_data_2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00E\x00' \
-             b'\x00J\xeb\xc3@\x00@\x11P\xa9\x7f\x00\x00\x01\x7f\x00\x005\x9a' \
-             b'\xfc\x005\x006\xfe}i\xed\x01\x00\x00\x01\x00\x00\x00\x00\x00' \
-             b'\x01\x02ru\nwiktionary\x03org\x00\x00\x01\x00\x01\x00\x00)' \
-             b'\x04\xb0\x00\x00\x00\x00\x00\x00'
-
-
-# endregion binary data
-
 
 class TestPcap(unittest.TestCase):
     def test_pcap_file_exists_end_close(self):
-        dictionary = {0: raw_data_1}
+        dictionary = {0: test.raw_data_1}
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         self.pcap_maker = sniffer.pcap_mod('test_pcap.pcap', dictionary, 1)
@@ -44,7 +28,7 @@ class TestPcap(unittest.TestCase):
 
 class TestParsersTCP(unittest.TestCase):
     def test_ethernet(self):
-        self.ethernet, self.data = hp.parse_ethernet(raw_data_1)[0:2]
+        self.ethernet, self.data = hp.parse_ethernet(test.raw_data_1)[0:2]
         self.right_header = ('08:00:27:54:ec:cd', '52:54:00:12:35:02', 2048)
         self.ethernet_header = self.ethernet.get_all_ethernet_information()
         self.assertEqual(self.ethernet_header, self.right_header)
@@ -70,7 +54,7 @@ class TestParsersTCP(unittest.TestCase):
 
 class TestParsersToUDP(unittest.TestCase):
     def make_udp_data(self):
-        self.data = raw_data_2
+        self.data = test.raw_data_2
         for parser in [hp.parse_ethernet, hp.parse_ipv4]:
             self.data = parser(self.data)[1]
         return self.data
@@ -97,12 +81,25 @@ class TestSniffer(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         test_report = test.TestReport(['any'])
-        sniffer.console_mod(raw_data_1, 1, test_report, 'eth', 'any', False)
+        test_socket = test.TestSocket()
+        test_args = test.Args(headers='eth')
+        sniffer.console_mod(test_socket, test_args)
         right = '+' + '-' * 92 + '\n| Ethernet:\n' + h.TAB_1
         right += ('Destination MAC: 08:00:27:54:ec:cd,' +
                   ' Source MAC: 52:54:00:12:35:02, Protocol: 2048.\n')
         sys.stdout = old_stdout
         output = buffer.getvalue()
+        self.assertEqual(output, right)
+
+    def test_console(self):
+        old_stdout = sys.stdout
+        sys.stdout = buffer = io.StringIO()
+        test_socket = test.TestSocket()
+        test_args = test.Args()
+        sniffer.console_mod(test_socket, test_args)
+        sys.stdout = old_stdout
+        output = buffer.getvalue()
+        right = ''
         self.assertEqual(output, right)
 
 

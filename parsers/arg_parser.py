@@ -7,9 +7,6 @@ import socket
 LOGIC = {'and', 'or', 'not', '(', ')'}
 
 
-
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="intercepts network traffic")
     parser.add_argument('-f', '--file', dest='filename',
@@ -20,7 +17,7 @@ def parse_args():
                         default=['any'], action='extend', nargs='+',
                         help='interface you want to sniff. variants ' +
                              '[eth, ipv4, ipv6, tcp, udp]')
-    parser.add_argument('-s', '--special', dest='special', default=['any'],
+    parser.add_argument('-s', '--specials', dest='specials', default=['any'],
                         action='extend', nargs='+',
                         help='more detailed information you want to sniff. ' +
                              'variants [host, src, dst, port]')
@@ -38,13 +35,14 @@ class Args:
         self.filename = args.filename
         self.packets_count = ArgCount(args).count
         self.headers = ArgHeaders(args).headers
-        self.special = ArgSpecial(args).special
+        self.specials = ArgSpecial(args).specials
         self.report = ArgReport(args).report
+        self.binary_mod = args.binary_mod
 
 
 class ArgCount:
     def __init__(self, args):
-        self.count = args.packets_count
+        self.count = int(args.packets_count)
         self.check()
         if not args.filename and self.count == 1:
             self.count = float('inf')
@@ -95,12 +93,12 @@ class ArgHeaders:
 
 class ArgSpecial:
     def __init__(self, args):
-        self.special = ArgHeaders.parse_interfaces(args.special)
+        self.specials = ArgHeaders.parse_interfaces(args.specials)
         self.check()
         self.parse_special()
 
     def check(self):
-        special = self.special.split(' ')
+        special = self.specials.split(' ')
         language = {'any', 'host', 'src', 'dst', 'port'}
         language |= LOGIC
         ip_regex = re.compile('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
@@ -111,29 +109,30 @@ class ArgSpecial:
                 sys.exit()
 
     def parse_special(self):
-        if self.special.find('host') != -1:
+        if self.specials.find('host') != -1:
             host = socket.gethostbyaddr(socket.gethostname())[2][0]
-            self.special = self.special.replace('host', 'host ' + host)
+            self.specials = self.specials.replace('host', 'host ' + host)
         for name in ['host', 'src', 'dst', 'port']:
-            if self.special.find(name) != -1:
-                self.special = self.special.replace(name + ' ', name + '=')
+            if self.specials.find(name) != -1:
+                self.specials = self.specials.replace(name + ' ', name + '=')
         self.parse_host()
-        self.special = ArgHeaders.parse_interfaces(self.special)
+        self.specials = ArgHeaders.parse_interfaces(self.specials)
 
     def parse_host(self):
-        self.special = self.special.split(' ')
-        for i in range(len(self.special)):
-            if self.special[i].find('host') != -1:
-                host = self.special[i]
+        self.specials = self.specials.split(' ')
+        for i in range(len(self.specials)):
+            if self.specials[i].find('host') != -1:
+                host = self.specials[i]
                 index = host.index('=')
                 ip = host[index + 1:]
-                self.special[i] = f'( src={ip} or dst={ip} )'
+                self.specials[i] = f'( src={ip} or dst={ip} )'
 
 
 class ArgReport:
     def __init__(self, args):
         self.report = args.report
         self.check()
+        self.parse_report()
 
     def check(self):
         for element in self.report:
@@ -142,5 +141,7 @@ class ArgReport:
                 sys.exit()
 
     def parse_report(self):
+        if len(self.report) == 1:
+            self.report = ['ip', 'count', 'bytes']
         if 'any' in self.report:
             self.report = self.report[1:]

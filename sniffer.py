@@ -1,55 +1,54 @@
 import socket as s
+import sys
 from parsers.header_parsers import parser_determine
-from parsers.arg_parser import parse_args, keys_parser
+from parsers.arg_parser import parse_args
 from output_format.pcap import PcapFile
-from output_format.packet_filter import PacketFilter
-from output_format.packet_report import PacketReport
+from full_packet import FullPacket
+from output_format.console import Console
 
 
 class Socket:
     ALL_DATA = 65565
 
     def __init__(self):
-        self.socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
+        try:
+            self.socket = s.socket(s.AF_PACKET, s.SOCK_RAW, s.ntohs(3))
+        except AttributeError:
+            print('Use Linux.')
+            sys.exit()
 
     def receive_from(self):
-        return self.socket.recvfrom(self.ALL_DATA)[0]
+        try:
+            return self.socket.recvfrom(self.ALL_DATA)[0]
+        except PermissionError:
+            print('Try sudo.')
+            sys.exit()
 
 
-def sniffer(args): 
-    try:
-        socket = Socket()
-        if args.filename:
-            pcap_mod(socket, args)
-        else:
-            console_mod(socket, args)
-    except PermissionError:
-        print('Try sudo')
+def sniffer(args):
+    socket = Socket()
+    pcap_mod(socket, args) if args.filename else console_mod(socket, args)
 
 
 def console_mod(socket, args):
-    logic_expression, specials, report, show_bytes = keys_parser(args)
-    report = PacketReport(report)
+    console = Console(args)
     count = 0
-    packets_count = args.packets_count
-    if args.packets_count == 1:
-        packets_count = float('inf')
-    while count < packets_count:
+    while count < args.packets_count:
         data = socket.receive_from()
-        protocol = 'Start'
-        final_packet = PacketFilter(logic_expression, specials)
-        package_size = len(data)
-        packet = None
-        while protocol != 'End' and final_packet.flag:
-            packet, data, protocol = parser_determine(data, protocol)
-            final_packet.add(packet)
-            report.add(packet, package_size)
-        if not final_packet.flag:
+        full_packet = FullPacket(package_size := len(data))
+        make_full_packet(full_packet, data)
+        console.main_method(full_packet)
+        if console.printed:
             count += 1
-        if (packet.packet_name in ['tcp', 'udp'] and
-                show_bytes and data.binary_data):
-            print(data.to_str())
-    report.show_report()
+    console.packet_report.show_report()
+    print(console.packet_report.table)
+
+
+def make_full_packet(full_packet, data):
+    protocol = 'Start'
+    while protocol != 'End':
+        packet, data, protocol = parser_determine(data, protocol)
+        full_packet.add_packet(packet)
 
 
 def pcap_mod(socket, args):
@@ -59,7 +58,10 @@ def pcap_mod(socket, args):
 
 def main():
     parsed_args = parse_args()
-    sniffer(parsed_args)
+    try:
+        sniffer(parsed_args)
+    except KeyboardInterrupt:
+        print("That's all.")
 
 
 if __name__ == '__main__':
