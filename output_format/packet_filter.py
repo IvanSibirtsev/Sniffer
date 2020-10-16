@@ -26,7 +26,7 @@ class PacketFilter:
         return first, second, third
 
     def add(self, packet):
-        self.packet = packet.full_packet
+        self.packet = packet
         self._update()
 
     def check(self):

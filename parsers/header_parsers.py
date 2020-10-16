@@ -1,5 +1,5 @@
 from struct import unpack
-from headers import Ethernet, IPv4, IPv6, TCP, UDP, BinaryData, UnknownPacket
+from headers import Ethernet, IPv4, IPv6, TCP, UDP, BinaryData, UnknownNetworkPacket
 
 
 def parse_ethernet(data):
@@ -73,7 +73,7 @@ def parse_udp(data):
 
 
 def parse_unknown_packet(data, protocol):
-    unknown = UnknownPacket(protocol, data)
+    unknown = UnknownNetworkPacket(protocol, data)
     return unknown, unknown, 'End'  # \033[31m|
 
 

@@ -13,7 +13,7 @@ class Console:
                                           self.args.specials)
 
     def main_method(self, full_packet):
-        self.packet_filter.add(full_packet)
+        self.packet_filter.add(full_packet.get_full_packet())
         self.packet_report.add(full_packet)
         if self.packet_filter.check():
             self.printed = True

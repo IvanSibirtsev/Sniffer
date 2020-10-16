@@ -161,16 +161,31 @@ class BinaryData:
         return '| Data:\n' + str(s)
 
 
-class UnknownPacket:
+class UnknownNetworkPacket:
     def __init__(self, protocol, binary_data):
         self.level = 'unknown'
-        self.packet_name = 'unknown'
         self.protocol = protocol
         self.binary_data = binary_data
 
     def to_str(self):
         s = HexDump(self.binary_data).hex_string
         return f'| Unknown protocol number: {self.protocol}\n' + str(s)
+
+
+class NullNetworkPacket:
+    def __init__(self):
+        self.level = 'network'
+        self.packet_name = 'UnknownNetworkPacket'
+        self.s_ip = 'unknown'
+        self.d_ip = 'unknown'
+
+
+class NullTransportPacket:
+    def __init__(self):
+        self.level = 'transport'
+        self.packet_name = 'UnknownTransportPacket'
+        self.s_ip = 'unknown'
+        self.d_ip = 'unknown'
 
 
 class HexDump:
