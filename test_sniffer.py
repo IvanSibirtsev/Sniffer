@@ -10,7 +10,7 @@ import sys
 import sniffer
 import headers as h
 from parsers import arg_parser as ap, header_parsers as hp
-from output_format import packet_report as pr, packet_filter as pf
+from output_format.filters import packet_report as pr, packet_filter as pf
 from tests import test_classes as test
 
 

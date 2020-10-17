@@ -46,7 +46,7 @@ def console_mod(socket, args):
 
 def make_full_packet(full_packet, data):
     protocol = 'Start'
-    while protocol != 'End':
+    while not full_packet.full_packet.get('binary_data'):
         packet, data, protocol = parser_determine(data, protocol)
         full_packet.add_packet(packet)
 
@@ -61,7 +61,7 @@ def main():
     try:
         sniffer(parsed_args)
     except KeyboardInterrupt:
-        print("That's all.")
+        print("\nThat's all.")
 
 
 if __name__ == '__main__':

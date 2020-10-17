@@ -7,7 +7,10 @@ class FullPacket:
         self.packet_size = size
 
     def add_packet(self, packet):
-        self.full_packet[packet.level] = packet
+        if packet.level == 'unknown':
+            self.full_packet['binary_data'] = packet
+        else:
+            self.full_packet[packet.level] = packet
 
     def get_full_packet(self):
         if 'network' not in self.full_packet.keys():

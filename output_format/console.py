@@ -1,5 +1,5 @@
-from output_format.packet_filter import PacketFilter
-from output_format.packet_report import PacketReport
+from output_format.filters.packet_filter import PacketFilter
+from output_format.filters.packet_report import PacketReport
 
 
 class Console:

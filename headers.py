@@ -153,6 +153,7 @@ class UDP:
 
 class BinaryData:
     def __init__(self, binary_data):
+        self.level = 'binary_data'
         self.packet_name = 'binary_data'
         self.binary_data = binary_data
 
@@ -161,7 +162,7 @@ class BinaryData:
         return '| Data:\n' + str(s)
 
 
-class UnknownNetworkPacket:
+class UnknownPacket:
     def __init__(self, protocol, binary_data):
         self.level = 'unknown'
         self.protocol = protocol
@@ -184,8 +185,7 @@ class NullTransportPacket:
     def __init__(self):
         self.level = 'transport'
         self.packet_name = 'UnknownTransportPacket'
-        self.s_ip = 'unknown'
-        self.d_ip = 'unknown'
+        self.port = 'unknown'
 
 
 class HexDump:

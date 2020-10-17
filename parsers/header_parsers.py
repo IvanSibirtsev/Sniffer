@@ -1,5 +1,5 @@
 from struct import unpack
-from headers import Ethernet, IPv4, IPv6, TCP, UDP, BinaryData, UnknownNetworkPacket
+from headers import Ethernet, IPv4, IPv6, TCP, UDP, BinaryData, UnknownPacket
 
 
 def parse_ethernet(data):
@@ -51,8 +51,8 @@ def parse_tcp(data):
 
     tcp_header = TCP(s_port, d_port, sequence, acknowledgment, window_size,
                      checksum, urgent_point, flags)
-    binary_data = BinaryData(data[offset:])
-    return tcp_header, binary_data, 'End'
+    binary_data = data[offset:]
+    return tcp_header, binary_data, 'binary_data'
 
 
 def parse_tcp_flags(offset_reserved_flags):
@@ -68,14 +68,21 @@ def parse_tcp_flags(offset_reserved_flags):
 def parse_udp(data):
     s_port, d_port, length, checksum = unpack('!HHHH', data[:8])
     udp_header = UDP(s_port, d_port, length, checksum)
-    binary_data = BinaryData(data[8:])
-    return udp_header, binary_data, 'End'
+    binary_data = data[8:]
+    return udp_header, binary_data, 'binary_data'
+
+
+def parse_binary_data(data):
+    binary_data = BinaryData(data)
+    return binary_data, b'', ''
 
 
 def parse_unknown_packet(data, protocol):
-    unknown = UnknownNetworkPacket(protocol, data)
-    return unknown, unknown, 'End'  # \033[31m|
+    unknown = UnknownPacket(protocol, data)
+    binary_data = unknown.binary_data
+    return unknown, binary_data, 'binary_data'
 
 
 protocol_to_parser = {'Start': parse_ethernet, 2048: parse_ipv4, 17: parse_udp,
-                      6: parse_tcp, 34525: parse_ipv6}
+                      6: parse_tcp, 34525: parse_ipv6,
+                      'binary_data': parse_binary_data}
