@@ -26,12 +26,12 @@ def parse_args():
                         help='print report. variants [ip, count, bytes]')
     parser.add_argument('-b', '--binary', dest='binary_mod',
                         action='store_true')
-    args = Args(parser.parse_args())
-    return args
+    return parser.parse_args()
 
 
 class Args:
-    def __init__(self, args):
+    def __init__(self):
+        args = parse_args()
         self.filename = args.filename
         self.packets_count = ArgCount(args).count
         self.headers = ArgHeaders(args).headers
