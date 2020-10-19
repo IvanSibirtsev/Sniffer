@@ -1,6 +1,8 @@
-import io
+from struct import unpack
 import hexdump
+import io
 from contextlib import redirect_stdout
+
 
 TAB_1 = '|\t- '
 TAB_2 = '|\t\t- '
@@ -8,12 +10,20 @@ TAB_3 = '|\t\t\t- '
 
 
 class Ethernet:
-    def __init__(self, src, destination, ether_type):
+    def __init__(self, data):
+        self.data = data
         self.level = 'data_link'
         self.packet_name = 'eth'
-        self.s_mac = self.get_mac(src)
-        self.d_mac = self.get_mac(destination)
-        self.ether_type = ether_type
+        self.s_mac = ''
+        self.d_mac = ''
+        self.next_header = ''
+
+    def parse(self):
+        d_mac, s_mac, self.next_header = unpack('!6s6sH', self.data[:14])
+        self.s_mac = self.get_mac(s_mac)
+        self.d_mac = self.get_mac(d_mac)
+        self.data = self.data[14:]
+        return self
 
     @staticmethod
     def get_mac(a):
@@ -21,34 +31,51 @@ class Ethernet:
             a[0], a[1], a[2], a[3], a[4], a[5])
 
     def get_all_ethernet_information(self):
-        return self.s_mac, self.d_mac, self.ether_type
+        return self.s_mac, self.d_mac, self.next_header
 
     def to_str(self):
         s = '| Ethernet:\n'
         s += (TAB_1 + f'Destination MAC: {self.s_mac}, ' +
-              f'Source MAC: {self.d_mac}, Protocol: {self.ether_type}.')
+              f'Source MAC: {self.d_mac}, Protocol: {self.next_header}.')
         return s
 
 
 class IPv4:
-    def __init__(self, version, iph_len, tos, total_len, datagram_id, flags,
-                 fr_offset, ttl, protocol, checksum, source, destination):
+    def __init__(self, data):
         # region init
+        self.data = data
         self.level = 'network'
         self.packet_name = 'ipv4'
-        self.version = version
-        self.iph_len = iph_len
-        self.tos = tos
-        self.total_len = total_len
-        self.datagram_id = datagram_id
-        self.flags = flags
-        self.fr_offset = fr_offset
-        self.ttl = ttl
-        self.protocol = protocol
-        self.checksum = checksum
-        self.s_ip = str(self.get_ipv4(source))
-        self.d_ip = str(self.get_ipv4(destination))
+        self.version = ''
+        self.iph_len = ''
+        self.tos = ''
+        self.total_len = ''
+        self.datagram_id = ''
+        self.flags = ''
+        self.fr_offset = ''
+        self.ttl = ''
+        self.next_header = ''
+        self.checksum = ''
+        self.s_ip = ''
+        self.d_ip = ''
         # endregion init
+
+    def parse(self):
+        (version_ihl, self.tos, self.total_len, self.datagram_id,
+         flags_fr_offset, self.ttl, self.next_header, self.checksum,
+         s_ip, d_ip) = unpack('!BBHHHBBH4s4s', self.data[0:20])
+        self.s_ip = str(self.get_ipv4(s_ip))
+        self.d_ip = str(self.get_ipv4(d_ip))
+
+        self.version = version_ihl >> 4
+        ihl = version_ihl & 0xF
+        self.iph_len = ihl * 4
+
+        self.flags = flags_fr_offset >> 13
+        self.fr_offset = flags_fr_offset & 0xFF
+
+        self.data = self.data[self.iph_len:]
+        return self
 
     @staticmethod
     def get_ipv4(address):
@@ -57,7 +84,7 @@ class IPv4:
     def get_all_ipv4_information(self):
         return (self.version, self.iph_len, self.tos, self.total_len,
                 self.datagram_id, self.flags, self.fr_offset, self.ttl,
-                self.protocol, self.checksum, self.s_ip, self.d_ip)
+                self.next_header, self.checksum, self.s_ip, self.d_ip)
 
     def to_str(self):
         s = '| IPv4:\n' + TAB_1
@@ -65,23 +92,35 @@ class IPv4:
             f'ToS/DSCP: {self.tos}, Total Length: {self.total_len}, ' \
             f'Identificator: {self.datagram_id}.\n' + TAB_1
         s += f'Flags: {self.flags}, Fragmentation Offset: {self.fr_offset},' \
-            f' TTL: {self.ttl}, Protocol: {self.protocol}, ' \
+            f' TTL: {self.ttl}, Protocol: {self.next_header}, ' \
             f'Header Checksum: {self.checksum}.\n' + TAB_1
         s += f'Source IP: {self.s_ip}, Destination IP: {self.d_ip}.'
         return s
 
 
 class IPv6:
-    def __init__(self, version,  payload_label, protocol, ttl,
-                 source, destination):
+    def __init__(self, data):
+        self.data = data
         self.level = 'network'
         self.packet_name = 'ipv6'
-        self.version = version
-        self.payload_label = payload_label
-        self.protocol = protocol
-        self.ttl = ttl
-        self.s_ip = str(self.get_ipv6(source))
-        self.d_ip = str(self.get_ipv6(destination))
+        self.version = ''
+        self.payload_label = ''
+        self.next_header = ''
+        self.ttl = ''
+        self.s_ip = ''
+        self.d_ip = ''
+
+    def parse(self):
+        version_header_len = self.data[0]
+        self.version = version_header_len >> 4
+        payload_proto_limit = unpack('!HBB', self.data[4:8])
+        self.payload_label = payload_proto_limit[0]
+        self.next_header = payload_proto_limit[1]
+        self.ttl = payload_proto_limit[0]
+        self.s_ip = str(self.get_ipv6(self.data[8:24]))
+        self.d_ip = str(self.get_ipv6(self.data[24:40]))
+        self.data = self.data[40:]
+        return self
 
     @staticmethod
     def get_ipv6(address):
@@ -90,30 +129,54 @@ class IPv6:
                 f':{a[20:24]}:{a[24:28]}:{a[28:32]}')
 
     def get_all_information(self):
-        return (self.version, self.payload_label, self.protocol, self.ttl,
+        return (self.version, self.payload_label, self.next_header, self.ttl,
                 self.s_ip, self.d_ip)
 
     def to_str(self):
         s = '| IPv6:\n' + TAB_1
         s += f'Version: {self.version}, Payload label: {self.payload_label}.\n'
-        s += TAB_1 + f'Protocol: {self.protocol}, TTL: {self.ttl}.\n' + TAB_1
+        s += TAB_1 + f'Protocol: {self.next_header}, TTL: {self.ttl}.\n' + TAB_1
         s += f'Source IP: {self.s_ip}, Destination IP: {self.d_ip}.'
         return s
 
 
 class TCP:
-    def __init__(self, s_port, d_port, sequence, acknowledgment, window_size,
-                 checksum, urgent_point, flags):
+    def __init__(self, data):
+        self.data = data
         self.level = 'transport'
         self.packet_name = 'tcp'
+        self.next_header = 'binary_data'
+        self.s_port = ''
+        self.d_port = ''
+        self.seq = ''
+        self.acknowledgment = ''
+        self.w_size = ''
+        self.checksum = ''
+        self.urgent_point = ''
+        self.f = []
+
+    def parse(self):
+        (s_port, d_port, self.seq, self.acknowledgment,
+         offset_reserved_flags) = unpack('!HHLLH', self.data[:14])
+        tcp_header_len = self.data[12] >> 4
         self.s_port = str(s_port)
         self.d_port = str(d_port)
-        self.seq = sequence
-        self.acknowledgment = acknowledgment
-        self.w_size = window_size
-        self.checksum = checksum
-        self.urgent_point = urgent_point
-        self.f = flags
+        (self.w_size, self.checksum,
+         self.urgent_point) = unpack('!HHH', self.data[14: 20])
+        offset = (offset_reserved_flags >> 12) * 4
+        self.f = self.parse_tcp_flags(offset_reserved_flags)
+        self.data = self.data[offset:]
+        return self
+
+    @staticmethod
+    def parse_tcp_flags(offset_reserved_flags):
+        urg = (offset_reserved_flags & 32) >> 5
+        ack = (offset_reserved_flags & 16) >> 4
+        psh = (offset_reserved_flags & 8) >> 3
+        rst = (offset_reserved_flags & 4) >> 2
+        syn = (offset_reserved_flags & 2) >> 1
+        fin = offset_reserved_flags & 1
+        return [urg, ack, psh, rst, syn, fin]
 
     def get_all_tcp_information(self):
         return (self.s_port, self.d_port, self.seq, self.acknowledgment,
@@ -133,13 +196,23 @@ class TCP:
 
 
 class UDP:
-    def __init__(self, s_port, d_port, length, checksum):
+    def __init__(self, data):
+        self.data = data
         self.level = 'transport'
         self.packet_name = 'udp'
+        self.next_header = 'binary_data'
+        self.s_port = ''
+        self.d_port = ''
+        self.length = ''
+        self.checksum = ''
+
+    def parse(self):
+        (s_port, d_port, self.length,
+         self.checksum) = unpack('!HHHH', self.data[:8])
         self.s_port = str(s_port)
         self.d_port = str(d_port)
-        self.length = length
-        self.checksum = checksum
+        self.data = self.data[8:]
+        return self
 
     def get_all_udp_information(self):
         return self.s_port, self.d_port, self.length, self.checksum
@@ -152,24 +225,29 @@ class UDP:
 
 
 class BinaryData:
-    def __init__(self, binary_data):
+    def __init__(self, data):
+        self.data = data
         self.level = 'binary_data'
         self.packet_name = 'binary_data'
-        self.binary_data = binary_data
+        self.next_header = ''
+
+    def parse(self):
+        return self
 
     def to_str(self):
-        s = HexDump(self.binary_data).hex_string
+        s = HexDump(self.data).hex_string
         return '| Data:\n' + str(s)
 
 
 class UnknownPacket:
-    def __init__(self, protocol, binary_data):
+    def __init__(self, protocol, data):
         self.level = 'unknown'
         self.protocol = protocol
-        self.binary_data = binary_data
+        self.data = data
+        self.next_header = ''
 
     def to_str(self):
-        s = HexDump(self.binary_data).hex_string
+        s = HexDump(self.data).hex_string
         return f'| Unknown protocol number: {self.protocol}\n' + str(s)
 
 
