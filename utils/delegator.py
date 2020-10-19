@@ -1,8 +1,8 @@
-from parsers.headers import Ethernet, IPv4, IPv6, UDP, TCP, BinaryData, \
+from packets.headers import Ethernet, IPv4, IPv6, UDP, TCP, BinaryData, \
     UnknownPacket
 
 
-class Distributor:
+class Delegator:
     def __init__(self, data):
         self.data = data
         self.protocols = {'Start': Ethernet, 2048: IPv4, 34525: IPv6,
