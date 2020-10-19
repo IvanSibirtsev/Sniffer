@@ -8,8 +8,7 @@ import sys
 # sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
 
 import sniffer
-import headers as h
-from parsers import arg_parser as ap, header_parsers as hp
+import distributor as h
 from output_format.filters import packet_report as pr, packet_filter as pf
 from tests import test_classes as test
 

@@ -66,3 +66,12 @@ class TestSocket:
 
     def receive_from(self):
         return self.data
+
+    def get(self):
+        return self
+
+
+if __name__ == '__main__':
+    d = {1: TestIpv4, 2: TestTCP, 3: TestEthernet}
+    socket = d[1]().to_str()
+    socket.count()

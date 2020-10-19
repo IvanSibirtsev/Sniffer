@@ -1,6 +1,6 @@
 import socket as s
 import sys
-from parsers.header_parsers import parser_determine
+from distributor import Distributor
 from parsers.arg_parser import Args
 from output_format.pcap import PcapFile
 from full_packet import FullPacket
@@ -48,9 +48,10 @@ class Sniffer:
         print(console.packet_report.table)
 
     def _make_full_packet(self, data):
+        distributor = Distributor(data)
         protocol = 'Start'
         while not self._full_packet.full_packet.get('binary_data'):
-            packet, data, protocol = parser_determine(data, protocol)
+            packet, data, protocol = distributor.parse(protocol)
             self._full_packet.add_packet(packet)
 
     def pcap_mod(self):

@@ -1,4 +1,4 @@
-from headers import NullNetworkPacket, NullTransportPacket
+from distributor import NullNetworkPacket, NullTransportPacket
 
 
 class FullPacket:
