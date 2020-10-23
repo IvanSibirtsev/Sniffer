@@ -12,16 +12,16 @@ class Console:
         self.packet_filter = PacketFilter(self.args.headers,
                                           self.args.specials)
 
-    def main_method(self, full_packet):
+    def print(self, full_packet):
         self.packet_filter.add(full_packet.get_full_packet())
         self.packet_report.add(full_packet)
         if self.packet_filter.check():
             self.printed = True
-            self.console_output(self.packet_filter.matching_packets)
+            self._console_output(self.packet_filter.matching_packets)
         else:
             self.printed = False
 
-    def console_output(self, packets):
+    def _console_output(self, packets):
         self.printed = True
         print(self.margin)
         for packet in packets:

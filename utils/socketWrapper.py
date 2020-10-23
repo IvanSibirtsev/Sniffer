@@ -11,10 +11,9 @@ class Socket:
         except AttributeError:
             print('Use Linux.')
             sys.exit()
-
-    def receive_from(self):
-        try:
-            return self.socket.recvfrom(self.ALL_DATA)[0]
         except PermissionError:
             print('Try sudo.')
             sys.exit()
+
+    def receive_from(self):
+        return self.socket.recvfrom(self.ALL_DATA)[0]

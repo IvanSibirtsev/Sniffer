@@ -12,9 +12,12 @@ class FullPacket:
         else:
             self.full_packet[packet.level] = packet
 
-    def get_full_packet(self):
+    def _add_missed_packets(self):
         if 'network' not in self.full_packet.keys():
             self.full_packet['network'] = NullNetworkPacket()
         if 'transport' not in self.full_packet.keys():
             self.full_packet['transport'] = NullTransportPacket()
+
+    def get_full_packet(self):
+        self._add_missed_packets()
         return self.full_packet

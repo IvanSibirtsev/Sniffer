@@ -63,6 +63,8 @@ class ArgHeaders:
         self.args = args
         self.check()
         self.headers = self.parse_interfaces(args.headers)
+        if self.headers == 'any':
+            self.headers = 'eth and (ipv4 or ipv6) and (tcp or udp)'
 
     def check(self):
         interfaces = self.parse_interfaces(self.args.headers)

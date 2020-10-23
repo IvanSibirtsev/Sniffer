@@ -37,7 +37,6 @@ class PacketReport:
 
     def _make_table(self):
         self.table = PrettyTable(self.report_type)
-        print(self.report_type)
         for ip in self._ip_list:
             req_count, size = self._dictionary[ip]
             dictionary = {'ip': ip, 'count': req_count, 'bytes': size}

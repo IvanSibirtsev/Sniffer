@@ -20,13 +20,13 @@ class Ethernet:
 
     def parse(self):
         d_mac, s_mac, self.next_header = unpack('!6s6sH', self.data[:14])
-        self.s_mac = self.get_mac(s_mac)
-        self.d_mac = self.get_mac(d_mac)
+        self.s_mac = self._get_mac(s_mac)
+        self.d_mac = self._get_mac(d_mac)
         self.data = self.data[14:]
         return self
 
     @staticmethod
-    def get_mac(a):
+    def _get_mac(a):
         return "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (
             a[0], a[1], a[2], a[3], a[4], a[5])
 
@@ -64,8 +64,8 @@ class IPv4:
         (version_ihl, self.tos, self.total_len, self.datagram_id,
          flags_fr_offset, self.ttl, self.next_header, self.checksum,
          s_ip, d_ip) = unpack('!BBHHHBBH4s4s', self.data[0:20])
-        self.s_ip = str(self.get_ipv4(s_ip))
-        self.d_ip = str(self.get_ipv4(d_ip))
+        self.s_ip = str(self._get_ipv4(s_ip))
+        self.d_ip = str(self._get_ipv4(d_ip))
 
         self.version = version_ihl >> 4
         ihl = version_ihl & 0xF
@@ -78,7 +78,7 @@ class IPv4:
         return self
 
     @staticmethod
-    def get_ipv4(address):
+    def _get_ipv4(address):
         return '.'.join(map(str, address))
 
     def get_all_ipv4_information(self):
@@ -117,13 +117,13 @@ class IPv6:
         self.payload_label = payload_proto_limit[0]
         self.next_header = payload_proto_limit[1]
         self.ttl = payload_proto_limit[0]
-        self.s_ip = str(self.get_ipv6(self.data[8:24]))
-        self.d_ip = str(self.get_ipv6(self.data[24:40]))
+        self.s_ip = str(self._get_ipv6(self.data[8:24]))
+        self.d_ip = str(self._get_ipv6(self.data[24:40]))
         self.data = self.data[40:]
         return self
 
     @staticmethod
-    def get_ipv6(address):
+    def _get_ipv6(address):
         a = ''.join(map('{:02X}'.format, address))
         return (f'{a[0:4]}:{a[4:8]}:{a[8:12]}:{a[12:16]}:{a[16:20]}'
                 f':{a[20:24]}:{a[24:28]}:{a[28:32]}')
@@ -164,12 +164,12 @@ class TCP:
         (self.w_size, self.checksum,
          self.urgent_point) = unpack('!HHH', self.data[14: 20])
         offset = (offset_reserved_flags >> 12) * 4
-        self.f = self.parse_tcp_flags(offset_reserved_flags)
+        self.f = self._parse_tcp_flags(offset_reserved_flags)
         self.data = self.data[offset:]
         return self
 
     @staticmethod
-    def parse_tcp_flags(offset_reserved_flags):
+    def _parse_tcp_flags(offset_reserved_flags):
         urg = (offset_reserved_flags & 32) >> 5
         ack = (offset_reserved_flags & 16) >> 4
         psh = (offset_reserved_flags & 8) >> 3

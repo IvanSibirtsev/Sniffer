@@ -2,8 +2,6 @@ class PacketFilter:
     def __init__(self, logic_expression, specials):
         self.logic_expression = logic_expression
         self.specials = specials
-        if self.logic_expression == 'any':
-            self.logic_expression = 'eth and (ipv4 or ipv6) and (tcp or udp)'
 
         self.packet = None
         self.eth = None

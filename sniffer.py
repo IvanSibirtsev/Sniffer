@@ -18,26 +18,26 @@ class Sniffer:
     def console_mod(self):
         console = Console(self._args)
         count = 0
-        while count <= self._args.packets_count:
+        while count < self._args.packets_count:
             data = self._socket.receive_from()
             self._full_packet = FullPacket(package_size := len(data))
             self._make_full_packet(data)
-            console.main_method(self._full_packet)
+            console.print(self._full_packet)
             if console.printed:
                 count += 1
         console.packet_report.show_report()
-        print(console.packet_report.table)
+        # print(console.packet_report.table)
 
     def _make_full_packet(self, data):
-        distributor = Delegator(data)
+        delegator = Delegator(data)
         protocol = 'Start'
         while not self._full_packet.full_packet.get('binary_data'):
-            packet, data, protocol = distributor.parse(protocol)
+            packet, data, protocol = delegator.parse(protocol)
             self._full_packet.add_packet(packet)
 
     def pcap_mod(self):
         data = {i: self._socket.receive_from()
-                for i in range(self._args.packet_count)}
+                for i in range(self._args.packets_count)}
         PcapFile(self._args.filename).write_pcap(data)
 
 

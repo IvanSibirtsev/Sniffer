@@ -11,14 +11,16 @@ raw_data_2 = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00E\x00' \
 
 
 class Args:
-    def __init__(self, count=1, headers='any', special='any',
-                 report=['ip', 'count', 'bytes']):
+    def __init__(self, count=1,
+                 headers='eth and (ipv4 or ipv6) and (tcp or udp)',
+                 special='any',
+                 report=['ip', 'count', 'bytes'], filename='test.pcap'):
         self.packets_count = count
         self.headers = headers
         self.specials = special
         self.binary_mod = False
         self.report = report
-        self.filename = 'filename.pcap'
+        self.filename = filename
 
 
 class TestReport:
@@ -35,6 +37,7 @@ class TestReport:
 class TestEthernet:
     def __init__(self):
         self.packet_name = 'eth'
+        self.level = 'data_link'
 
     def to_str(self):
         return self.packet_name
@@ -43,6 +46,7 @@ class TestEthernet:
 class TestIpv4:
     def __init__(self):
         self.packet_name = 'ipv4'
+        self.level = 'network'
         self.d_ip = '000.000.000.000'
 
     def to_str(self):
@@ -52,6 +56,7 @@ class TestIpv4:
 class TestTCP:
     def __init__(self):
         self.packet_name = 'tcp'
+        self.level = 'transport'
         self.s_port = '80'
 
     def to_str(self):
@@ -69,9 +74,3 @@ class TestSocket:
 
     def get(self):
         return self
-
-
-if __name__ == '__main__':
-    d = {1: TestIpv4, 2: TestTCP, 3: TestEthernet}
-    socket = d[1]().to_str()
-    socket.count()

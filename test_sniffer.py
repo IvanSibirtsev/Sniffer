@@ -5,180 +5,125 @@ import os
 import io
 import sys
 
-# sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.pardir))
-
+import tests.test_classes as test
 import sniffer
-from utils import delegator as h
-from output_format.filters import packet_report as pr, packet_filter as pf
-from tests import test_classes as test
+from packets import headers
+from utils import socketWrapper
+from output_format.filters import packet_filter as pf
+from packets import full_packet
+from output_format import console
 
 
 class TestPcap(unittest.TestCase):
-    def test_pcap_file_exists_end_close(self):
-        dictionary = {0: test.raw_data_1}
-        old_stdout = sys.stdout
+    def setUp(self):
+        self.old_stdout = sys.stdout
         sys.stdout = io.StringIO()
-        self.pcap_maker = sniffer.pcap_mod('test_pcap.pcap', dictionary, 1)
-        path = os.path.join('pcap', 'test_pcap.pcap')
+
+    def test_pcap_file_exists_end_close(self):
+        args = test.Args()
+        t_socket = test.TestSocket()
+        sniffer.Sniffer(t_socket, args).start_sniff()
+        path = os.path.join('pcap', 'test.pcap')
         self.assertEqual(os.path.exists(path), True)
-        sys.stdout = old_stdout
+        sys.stdout = self.old_stdout
         os.remove(path)
 
 
 class TestParsersTCP(unittest.TestCase):
     def test_ethernet(self):
-        self.ethernet, self.data = hp.parse_ethernet(test.raw_data_1)[0:2]
-        self.right_header = ('08:00:27:54:ec:cd', '52:54:00:12:35:02', 2048)
-        self.ethernet_header = self.ethernet.get_all_ethernet_information()
-        self.assertEqual(self.ethernet_header, self.right_header)
-        return self.data
+        ethernet = headers.Ethernet(test.raw_data_1).parse()
+        right_header = ('08:00:27:54:ec:cd', '52:54:00:12:35:02', 2048)
+        ethernet_header = ethernet.get_all_ethernet_information()
+        self.assertEqual(ethernet_header, right_header)
+        return ethernet.data
 
     def test_ipv4(self):
-        self.data = self.test_ethernet()
-        self.ipv4, self.data = hp.parse_ipv4(self.data)[0:2]
-        self.right_header = (4, 20, 0, 40, 65058, 2, 0, 64, 6, 54690,
-                             '10.0.2.15', '92.122.254.129')
-        self.ipv4_header = self.ipv4.get_all_ipv4_information()
-        self.assertEqual(self.ipv4_header, self.right_header)
-        return self.data
+        data = self.test_ethernet()
+        ipv4 = headers.IPv4(data).parse()
+        right_header = (4, 20, 0, 40, 65058, 2, 0, 64, 6, 54690,
+                        '10.0.2.15', '92.122.254.129')
+        ipv4_header = ipv4.get_all_ipv4_information()
+        self.assertEqual(ipv4_header, right_header)
+        return ipv4.data
 
     def test_tcp(self):
-        self.data = self.test_ipv4()
-        self.tcp = hp.parse_tcp(self.data)[0]
-        self.tcp_header = self.tcp.get_all_tcp_information()
-        self.right_header = ('55702', '443', 1211858345, 278278377,
-                             63900, 26405, 0, [0, 1, 0, 0, 0, 0])
-        self.assertEqual(self.tcp_header, self.right_header)
+        data = self.test_ipv4()
+        tcp = headers.TCP(data).parse()
+        tcp_header = tcp.get_all_tcp_information()
+        right_header = ('55702', '443', 1211858345, 278278377,
+                        63900, 26405, 0, [0, 1, 0, 0, 0, 0])
+        self.assertEqual(tcp_header, right_header)
 
 
 class TestParsersToUDP(unittest.TestCase):
-    def make_udp_data(self):
-        self.data = test.raw_data_2
-        for parser in [hp.parse_ethernet, hp.parse_ipv4]:
-            self.data = parser(self.data)[1]
-        return self.data
+    @staticmethod
+    def make_udp_data():
+        data = test.raw_data_2
+        for parser in [headers.Ethernet, headers.IPv4]:
+            data = parser(data).parse().data
+        return data
 
     def test_udp(self):
-        self.data = self.make_udp_data()
-        self.udp = hp.parse_udp(self.data)[0]
-        self.udp_header = self.udp.get_all_udp_information()
-        self.right_header = ('39676', '53', 54, 65149)
-        self.assertEqual(self.udp_header, self.right_header)
+        data = self.make_udp_data()
+        udp = headers.UDP(data).parse()
+        udp_header = udp.get_all_udp_information()
+        right_header = ('39676', '53', 54, 65149)
+        self.assertEqual(udp_header, right_header)
 
 
-class TestSniffer(unittest.TestCase):
-    def test_exception(self):
+class TestSocketWrapper(unittest.TestCase):
+    def test_exceptions(self):
         if os.getuid() != 0:
             old_stdout = sys.stdout
             sys.stdout = buffer = io.StringIO()
-            sniffer.sniffer('')
+            with self.assertRaises(SystemExit):
+                with self.assertRaises(PermissionError):
+                    socketWrapper.Socket()
             sys.stdout = old_stdout
             output = buffer.getvalue()
-            self.assertEqual(output, 'Try sudo\n')
+            self.assertEqual(output, 'Try sudo.\n')
 
+
+class TestSniffer(unittest.TestCase):
     def test_console_mod(self):
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
-        test_report = test.TestReport(['any'])
+
         test_socket = test.TestSocket()
-        test_args = test.Args(headers='eth')
-        sniffer.console_mod(test_socket, test_args)
-        right = '+' + '-' * 92 + '\n| Ethernet:\n' + h.TAB_1
+        test_args = test.Args(headers='eth', filename='')
+        console_sniffer = sniffer.Sniffer(test_socket, test_args)
+        console_sniffer.start_sniff()
+        right = '+' + '-' * 92 + '\n| Ethernet:\n' + headers.TAB_1
         right += ('Destination MAC: 08:00:27:54:ec:cd,' +
                   ' Source MAC: 52:54:00:12:35:02, Protocol: 2048.\n')
         sys.stdout = old_stdout
         output = buffer.getvalue()
         self.assertEqual(output, right)
 
-    def test_console(self):
-        old_stdout = sys.stdout
-        sys.stdout = buffer = io.StringIO()
-        test_socket = test.TestSocket()
-        test_args = test.Args()
-        sniffer.console_mod(test_socket, test_args)
-        sys.stdout = old_stdout
-        output = buffer.getvalue()
-        right = ''
-        self.assertEqual(output, right)
-
-
-class TestCUI(unittest.TestCase):
-    def test_ethernet(self):
-        s, d = b'\xff\xff\xff\xff\xff\xff', b'\x00\x00\x00\x00\x00\x00'
-        ethernet_inf = h.Ethernet(s, d, 0)
-        s_mac, d_mac = 'ff:ff:ff:ff:ff:ff', '00:00:00:00:00:00'
-        right = '| Ethernet:\n' + h.TAB_1
-        right += f'Destination MAC: {s_mac}, Source MAC: {d_mac}, Protocol: 0.'
-        self.assertEqual(ethernet_inf.to_str(), right)
-
-    def test_ipv4(self):
-        s, d = b'S\xaa\x06L', b'S\xaa\x06L'  # StackOverFlow
-        ipv4_inf = hp.IPv4(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, s, d)
-        right = '| IPv4:\n' + h.TAB_1
-        right += ('Version: 1, Header Length: 1, ToS/DSCP: 1, ' +
-                  'Total Length: 1, Identificator: 1.\n' + h.TAB_1)
-        right += ('Flags: 1, Fragmentation Offset: 1, TTL: 1, ' +
-                  'Protocol: 1, Header Checksum: 1.\n') + h.TAB_1
-        right += 'Source IP: 83.170.6.76, Destination IP: 83.170.6.76.'
-        self.assertEqual(ipv4_inf.to_str(), right)
-
-    def test_tcp(self):
-        tcp_inf = h.TCP(1, 1, 1, 1, 1, 1, 1, [1, 1, 1, 1, 1, 1])
-        right = '| TCP Segment:\n' + h.TAB_1
-        right += f'Source Port: 1, Destination Port: 1\n' + h.TAB_1
-        right += 'Sequence: 1, Acknowledgment: 1, Window Size: 1\n'
-        right += h.TAB_1 + 'Checksum: 1, Urgent Point: 1.\n'
-        right += h.TAB_1 + 'Flags:\n'
-        right += h.TAB_2 + 'URG: 1, ACK: 1, PSH: 1\n'
-        right += h.TAB_2 + 'RST: 1, SYN: 1, FIN: 1'
-        self.assertEqual(tcp_inf.to_str(), right)
-
-    def test_udp(self):
-        udp_inf = h.UDP(1, 1, 1, 1)
-        right = '| UDP Segment:\n' + h.TAB_1
-        right += 'Source Port: 1, Destination Port: 1.\n' + h.TAB_1
-        right += 'Length: 1, Checksum: 1.'
-        self.assertEqual(udp_inf.to_str(), right)
-
 
 class TestPacketFilter(unittest.TestCase):
+    @staticmethod
+    def create_and_add_packet(test_full_packet, created_packet_type):
+        added_packet = created_packet_type()
+        test_full_packet.add_packet(added_packet)
+
     def test_any(self):
         margin = '+' + '-' * 92
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
 
-        packet = test.TestEthernet()
-        self.packet_filter = pf.PacketFilter('any', 'any')
-        self.packet_filter.add(packet)
-        packet = test.TestIpv4()
-        self.packet_filter.add(packet)
-        packet = test.TestTCP()
-
-        self.packet_filter.add(packet)
+        args = test.Args()
+        test_console = console.Console(args)
+        full_packet_test = full_packet.FullPacket(57)
+        self.create_and_add_packet(full_packet_test, test.TestEthernet)
+        self.create_and_add_packet(full_packet_test, test.TestIpv4)
+        self.create_and_add_packet(full_packet_test, test.TestTCP)
+        test_console.print(full_packet_test)
         right = margin + '\n' + 'eth\n' + 'ipv4\n' + 'tcp\n'
 
-        self.packet_filter = pf.PacketFilter('eth and ipv4', 'any')
-        packet = test.TestEthernet()
-        self.packet_filter.add(packet)
-        packet = test.TestIpv4()
-        self.packet_filter.add(packet)
-        packet = test.TestTCP()
-        self.packet_filter.add(packet)
-        right += margin + '\n' + 'eth\n' + 'ipv4\n'
-
-        self.packet_filter = pf.PacketFilter('tcp', 'port=80')
-        packet = test.TestTCP()
-        self.packet_filter.add(packet)
-        right += margin + '\n' + 'tcp\n'
         sys.stdout = old_stdout
         output = buffer.getvalue()
         self.assertEqual(output, right)
-
-
-class TestUnknown(unittest.TestCase):
-    def test_determine(self):
-        self.output = hp.parser_determine('no', 1544)
-        self.assertEqual(self.output[2], 'End')
 
 
 class TestArgParse(unittest.TestCase):
@@ -247,7 +192,7 @@ class TestArgParse(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         args = test.Args(headers=['any', 'ipv4', 'and', 'tcd'])
-        first_output = ('Unknown packet header "tcd". ' +
+        first_output = ('Unknown packets header "tcd". ' +
                         'Try "sudo python3 sniffer.py -h"\n')
         with self.assertRaises(SystemExit):
             ap.check_interfaces(args)

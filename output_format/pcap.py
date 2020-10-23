@@ -14,7 +14,7 @@ class PcapFile:
         self.write_global_header()
 
     def create_and_open_file(self):
-        return open(os.path.join('../pcap', self.filename), 'wb+')
+        return open(os.path.join('pcap', self.filename), 'wb+')
 
     def write_global_header(self):
         global_header = GlobalHeader().global_header
