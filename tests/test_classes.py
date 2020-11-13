@@ -14,7 +14,7 @@ class Args:
     def __init__(self, count=1,
                  headers='eth and (ipv4 or ipv6) and (tcp or udp)',
                  special='any',
-                 report=['ip', 'count', 'bytes'], filename='test.pcap'):
+                 report=['ip', 'count', 'bytes'], filename='test.pcap_files'):
         self.packets_count = count
         self.headers = headers
         self.specials = special

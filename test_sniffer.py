@@ -9,9 +9,8 @@ import tests.test_classes as test
 import sniffer
 from packets import headers
 from utils import socketWrapper
-from output_format.filters import packet_filter as pf
 from packets import full_packet
-from output_format import console
+from cli import cli
 
 
 class TestPcap(unittest.TestCase):
@@ -23,7 +22,7 @@ class TestPcap(unittest.TestCase):
         args = test.Args()
         t_socket = test.TestSocket()
         sniffer.Sniffer(t_socket, args).start_sniff()
-        path = os.path.join('pcap', 'test.pcap')
+        path = os.path.join('pcap_files', 'test.pcap_files')
         self.assertEqual(os.path.exists(path), True)
         sys.stdout = self.old_stdout
         os.remove(path)
@@ -113,7 +112,7 @@ class TestPacketFilter(unittest.TestCase):
         sys.stdout = buffer = io.StringIO()
 
         args = test.Args()
-        test_console = console.Console(args)
+        test_console = cli.Console(args)
         full_packet_test = full_packet.FullPacket(57)
         self.create_and_add_packet(full_packet_test, test.TestEthernet)
         self.create_and_add_packet(full_packet_test, test.TestIpv4)

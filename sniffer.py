@@ -1,9 +1,9 @@
 from utils.socketWrapper import Socket
 from utils.delegator import Delegator
 from utils.arg_parser import Args
-from output_format.pcap import PcapFile
+from pcap.pcap_file import PcapFile
 from packets.full_packet import FullPacket
-from output_format.console import Console
+from cli.cli import Console
 
 
 class Sniffer:

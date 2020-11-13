@@ -10,7 +10,7 @@ LOGIC = {'and', 'or', 'not', '(', ')'}
 def parse_args():
     parser = argparse.ArgumentParser(description="intercepts network traffic")
     parser.add_argument('-f', '--file', dest='filename',
-                        help="output pcap filename")
+                        help="output pcap_files filename")
     parser.add_argument('-c', '--count', dest='packets_count', default=1,
                         type=int, help='count of packets you want to catch')
     parser.add_argument('-p', '--packets_header', dest='headers',
